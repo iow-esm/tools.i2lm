@@ -1,0 +1,1801 @@
+diff --unidirectional-new-file -r -U 1 cclm-sp_2.0/src/utils/cfu/Fopts utils/cfu/Fopts
+--- cclm-sp_2.0/src/utils/cfu/Fopts	1970-01-01 01:00:00.000000000 +0100
++++ utils/cfu/Fopts	2023-07-26 11:48:06.872507300 +0200
+@@ -0,0 +1,11 @@
++# standard binary
++PROGRAM      = bin/cfu
++
++# compiler, options and libraries
++
++F90          = ifort
++COMFLG       = -c
++
++LDSEQ        = ifort
++LDFLG        = 
++
+diff --unidirectional-new-file -r -U 1 cclm-sp_2.0/src/utils/cfu/Makefile utils/cfu/Makefile
+--- cclm-sp_2.0/src/utils/cfu/Makefile	1970-01-01 01:00:00.000000000 +0100
++++ utils/cfu/Makefile	2023-07-26 11:48:06.874458500 +0200
+@@ -0,0 +1,60 @@
++####################################################
++#
++#    Makefile for the Fortran 90 program
++#
++####################################################
++#
++#
++####################################################
++#
++#    Declaration of Variables
++#
++####################################################
++#
++.SILENT:
++#
++STDROOT      = $(PWD)
++SRCDIR       = $(STDROOT)/src
++OBJDIR       = $(STDROOT)/obj
++#
++#########
++#  include file containing system special configurations
++#########
++#
++include Fopts
++#
++#
++####################################################
++#
++#     Declaration of the Object Files
++#
++####################################################
++#
++include ObjFiles
++#
++#
++####################################################
++#
++#     valid actions
++#
++####################################################
++#
++#
++exe: $(OBJECTS)
++	echo "creating cfu executable"
++	$(LDSEQ) -o $(PROGRAM) $(OBJECTS)
++#
++clean:
++	echo cleaning up
++	rm -f $(PROGRAM)
++	rm -f $(OBJDIR)/*.o
++	rm -f $(OBJDIR)/*.mod
++#
++####################################################
++#
++#     Dependencies of the Data Modules
++#
++####################################################
++#
++
++include ObjDependencies
+diff --unidirectional-new-file -r -U 1 cclm-sp_2.0/src/utils/cfu/ObjDependencies utils/cfu/ObjDependencies
+--- cclm-sp_2.0/src/utils/cfu/ObjDependencies	1970-01-01 01:00:00.000000000 +0100
++++ utils/cfu/ObjDependencies	2023-07-26 11:48:06.876443500 +0200
+@@ -0,0 +1,27 @@
++#
++####################################################
++#
++#     Dependencies of the Data Modules
++#
++####################################################
++#
++$(OBJDIR)/add_hours.o:            $(SRCDIR)/add_hours.f90
++	( cd $(OBJDIR) && echo Compile ${@F} && $(F90) $(COMFLG) $(SRCDIR)/add_hours.f90 )
++
++$(OBJDIR)/add_months.o:            $(SRCDIR)/add_months.f90
++	( cd $(OBJDIR) && echo Compile ${@F} && $(F90) $(COMFLG) $(SRCDIR)/add_months.f90 )
++
++$(OBJDIR)/check_files.o:            $(SRCDIR)/check_files.f90
++	( cd $(OBJDIR) && echo Compile ${@F} && $(F90) $(COMFLG) $(SRCDIR)/check_files.f90 )
++
++$(OBJDIR)/get_hours.o:            $(SRCDIR)/get_hours.f90
++	( cd $(OBJDIR) && echo Compile ${@F} && $(F90) $(COMFLG) $(SRCDIR)/get_hours.f90 )
++
++$(OBJDIR)/get_next_dates.o:            $(SRCDIR)/get_next_dates.f90
++	( cd $(OBJDIR) && echo Compile ${@F} && $(F90) $(COMFLG) $(SRCDIR)/get_next_dates.f90 )
++
++$(OBJDIR)/cfu.o:            $(SRCDIR)/cfu.f90 \
++                            $(OBJDIR)/add_hours.o  $(OBJDIR)/add_months.o \
++                            $(OBJDIR)/check_files.o $(OBJDIR)/get_hours.o \
++                            $(OBJDIR)/get_next_dates.o
++	( cd $(OBJDIR) && echo Compile ${@F} && $(F90) $(COMFLG) $(SRCDIR)/cfu.f90 )
+diff --unidirectional-new-file -r -U 1 cclm-sp_2.0/src/utils/cfu/ObjFiles utils/cfu/ObjFiles
+--- cclm-sp_2.0/src/utils/cfu/ObjFiles	1970-01-01 01:00:00.000000000 +0100
++++ utils/cfu/ObjFiles	2023-07-26 11:48:06.878377600 +0200
+@@ -0,0 +1,14 @@
++#
++####################################################
++#
++#     Declaration of the Object Files
++#
++####################################################
++#
++OBJECTS      =    $(OBJDIR)/add_hours.o \
++                  $(OBJDIR)/add_months.o \
++                  $(OBJDIR)/check_files.o \
++                  $(OBJDIR)/get_hours.o \
++                  $(OBJDIR)/get_next_dates.o \
++                  $(OBJDIR)/cfu.o
++
+diff --unidirectional-new-file -r -U 1 cclm-sp_2.0/src/utils/cfu/src/add_hours.f90 utils/cfu/src/add_hours.f90
+--- cclm-sp_2.0/src/utils/cfu/src/add_hours.f90	1970-01-01 01:00:00.000000000 +0100
++++ utils/cfu/src/add_hours.f90	2023-07-26 11:48:06.883247200 +0200
+@@ -0,0 +1,249 @@
++SUBROUTINE add_hours (ystartdate, hadd, itype_calendar)
++
++!-------------------------------------------------------------------------------
++!
++! Description:
++!   This program adds a number of hours to a date
++!   YYYYMMDDHH(new) = YYYMMDDHH(old) + hours
++!
++!   Usage:
++!     add_hours <yyyymmddhh> <hours> <itype_calendar>
++!
++!   The result is written to standard output in the form YYYYMMDDHH
++!
++!-------------------------------------------------------------------------------
++!
++  IMPLICIT NONE
++
++! Input Parameter list:
++! ---------------------
++
++  CHARACTER (LEN=10) , INTENT(IN)          ::                      &
++    ystartdate ! start date of the forecast
++
++  REAL, INTENT(IN)      ::   &
++    hadd      ! hours to be added to ystartdate
++
++  INTEGER, INTENT(IN) :: &
++    itype_calendar  ! type of calendar 
++                    ! 0 = standard calendar
++                    ! 1 = climatological calendar (360 days per year)
++                    ! 2 = 365 days per year
++
++! Parameter written to standard output
++! ------------------------------------
++
++  CHARACTER (LEN=10)          ::                           &
++    yactdate1  ! actual date in the form   yyyymmddhh
++
++! Local variables:
++! ------------------------------------
++  CHARACTER (LEN=22)         ::                           &
++    yactdate2  ! actual date in the form   wd   dd.mm.yy  hh UTC
++
++  INTEGER      ::                                       &
++    month(12), monthsum(13), ileap, iweek, iy, m,                       &
++    idd, imm, iyy, ihh, iday, imonth, iyear, ihour, immhours, iyyhours
++    CHARACTER (LEN=3)            :: yweek(7)
++    CHARACTER (LEN=20)           :: chadd
++
++
++!------------ End of header ----------------------------------------------------
++
++! Begin subroutine add_hours
++
++DATA         month  / 31 ,  28 ,  31 ,  30 ,  31 ,  30 ,       &
++                      31 ,  31 ,  30 ,  31 ,  30 ,  31 /
++DATA         yweek  /'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN' /
++
++
++! Statementfunction: ileap(yy) = 0:  no leap year, 
++!                    ileap(yy) = 1:  leap year
++  ileap (iy) = IABS( MOD(iy,  4) -   4) /   4  & ! every       4 years is a leapyear
++              -IABS( MOD(iy,100) - 100) / 100  & ! every     100 years is no leapyear
++              +IABS( MOD(iy,400) - 400) / 400    ! but every 400 years is a leapyear
++
++! Divide ystartdate in day, month, year and hour
++! and calculate the sums of days from the beginning of the year to the 
++! end of the months
++  READ ( ystartdate, '(I4,3I2)' ) iyy, imm, idd, ihh
++
++   
++  SELECT CASE (itype_calendar)
++  
++  CASE (0)   !  Standard year
++
++  month (2)    = 28 + ileap (iyy)
++  monthsum(1) =  0
++  DO m =  2 , 13
++    monthsum(m) =  monthsum(m-1) + month(m-1)
++  enddo
++
++! Determine how many hours have passed in this year
++  iyyhours = (idd*24) + monthsum(imm)*24 + (ihh-24)
++  iyyhours = iyyhours + hadd
++! Take turning of the year into account
++    IF (iyyhours < 0) THEN
++      iyear    = iyy
++      DO WHILE (iyyhours >= (8760+ileap(iyear)*24))
++       iyyhours = iyyhours - (8760+ileap(iyear)*24)
++       iyear=iyear+1
++       month (2)    = 28 + ileap (iyear)
++       monthsum(1) =  0
++       DO m =  2 , 13
++           monthsum(m) =  monthsum(m-1) + month(m-1)
++       ENDDO
++      ENDDO
++    ELSE IF (iyyhours >= (8760+ileap(iyy)*24)) THEN
++      ! Take also into account if the run lasts
++      ! for several years
++      iyear    = iyy
++      DO WHILE (iyyhours >= (8760+ileap(iyear)*24))
++       iyyhours = iyyhours - (8760+ileap(iyear)*24)
++       iyear=iyear+1
++       month (2)    = 28 + ileap (iyear)
++       monthsum(1) =  0
++       DO m =  2 , 13
++           monthsum(m) =  monthsum(m-1) + month(m-1)
++       ENDDO
++      ENDDO
++    ELSE
++      iyear    =   iyy
++    ENDIF
++
++! Determine the actual date from iyyhours
++  m        = 1
++  immhours = iyyhours
++  DO WHILE (immhours >= 0)
++    m        = m+1
++    immhours = iyyhours - monthsum(m) * 24
++  ENDDO
++  imonth   = m-1
++  immhours = iyyhours - monthsum(imonth)*24
++  iday     = immhours/24 + 1
++  ihour    = MOD(immhours,24)
++  iweek    = MOD(monthsum(imonth) + iday + (iyear-1981)+(iyear-1981)/4+2 , 7) + 1
++
++  WRITE ( yactdate1(1:4) , '(I4.4)' ) iyear
++  WRITE ( yactdate1(5:6) , '(I2.2)' ) imonth
++  WRITE ( yactdate1(7:8) , '(I2.2)' ) iday
++  WRITE ( yactdate1(9:10), '(I2.2)' ) ihour
++
++  yactdate2 = yweek(iweek)//' '//yactdate1(7:8)//'.'// yactdate1(5:6)//'.'// &
++                         yactdate1(1:4)//'  '//yactdate1(9:10)//' UTC'
++
++  write(*,'(A10)') yactdate1
++
++!.... 
++  CASE (1)   !  360 days per year
++
++  monthsum(1) =  0
++  DO m =  2 , 13
++    monthsum(m) =  monthsum(m-1) + 30
++  enddo
++
++! Determine how many hours have passed in this year
++  iyyhours = (idd*24) + monthsum(imm)*24 + (ihh-24)
++  iyyhours = iyyhours + hadd
++
++! Take turning of the year into account
++  IF (iyyhours < 0) THEN
++    iyear    = iyy-1
++    iyyhours = 8640  + iyyhours
++  ELSE IF (iyyhours >= 8640) THEN
++      iyear    = iyy
++    DO WHILE (iyyhours >= 8640)
++      iyear    = iyear+1
++      iyyhours = iyyhours - 8640
++    ENDDO
++  ELSE
++    iyear    =   iyy
++  ENDIF
++
++! Determine the actual date from iyyhours
++  m        = 1
++  immhours = iyyhours
++  DO WHILE (immhours >= 0)
++    m        = m+1
++    immhours = iyyhours - monthsum(m) * 24
++  ENDDO
++  imonth   = m-1
++  immhours = iyyhours - monthsum(imonth)*24
++  iday     = immhours/24 + 1
++  ihour    = MOD(immhours,24)
++  iweek    = MOD(monthsum(imonth) + iday + (iyear-1981) , 7) + 1
++
++  WRITE ( yactdate1(1:4) , '(I4.4)' ) iyear
++  WRITE ( yactdate1(5:6) , '(I2.2)' ) imonth
++  WRITE ( yactdate1(7:8) , '(I2.2)' ) iday
++  WRITE ( yactdate1(9:10), '(I2.2)' ) ihour
++
++  yactdate2 = yweek(iweek)//' '//yactdate1(7:8)//'.'// yactdate1(5:6)//'.'// &
++                         yactdate1(1:4)//'  '//yactdate1(9:10)//' UTC'
++
++  write(*,'(A10)') yactdate1
++
++!.... 
++  CASE (2)   !  365 days per year
++
++  monthsum(1) =  0
++  DO m =  2 , 13
++    monthsum(m) =  monthsum(m-1) + month(m-1)
++  enddo
++
++! Determine how many hours have passed in this year
++  iyyhours = (idd*24) + monthsum(imm)*24 + (ihh-24)
++  iyyhours = iyyhours + hadd
++! Take turning of the year into account
++    IF (iyyhours < 0) THEN
++      iyear    = iyy
++      DO WHILE (iyyhours >= 8760)
++       iyyhours = iyyhours - 8760
++       iyear=iyear+1
++       monthsum(1) =  0
++       DO m =  2 , 13
++           monthsum(m) =  monthsum(m-1) + month(m-1)
++       ENDDO
++      ENDDO
++    ELSE IF (iyyhours >= 8760) THEN
++      ! Take also into account if the run lasts
++      ! for several years
++      iyear    = iyy
++      DO WHILE (iyyhours >= 8760)
++       iyyhours = iyyhours - 8760
++       iyear=iyear+1
++       monthsum(1) =  0
++       DO m =  2 , 13
++           monthsum(m) =  monthsum(m-1) + month(m-1)
++       ENDDO
++      ENDDO
++    ELSE
++      iyear    =   iyy
++    ENDIF
++
++! Determine the actual date from iyyhours
++  m        = 1
++  immhours = iyyhours
++  DO WHILE (immhours >= 0)
++    m        = m+1
++    immhours = iyyhours - monthsum(m) * 24
++  ENDDO
++  imonth   = m-1
++  immhours = iyyhours - monthsum(imonth)*24
++  iday     = immhours/24 + 1
++  ihour    = MOD(immhours,24)
++  iweek    = MOD(monthsum(imonth) + iday + (iyear-1981)+(iyear-1981)/4+2 , 7) + 1
++
++  WRITE ( yactdate1(1:4) , '(I4.4)' ) iyear
++  WRITE ( yactdate1(5:6) , '(I2.2)' ) imonth
++  WRITE ( yactdate1(7:8) , '(I2.2)' ) iday
++  WRITE ( yactdate1(9:10), '(I2.2)' ) ihour
++
++  yactdate2 = yweek(iweek)//' '//yactdate1(7:8)//'.'// yactdate1(5:6)//'.'// &
++                         yactdate1(1:4)//'  '//yactdate1(9:10)//' UTC'
++
++  write(*,'(A10)') yactdate1
++
++  END SELECT
++
++END SUBROUTINE add_hours
+diff --unidirectional-new-file -r -U 1 cclm-sp_2.0/src/utils/cfu/src/add_months.f90 utils/cfu/src/add_months.f90
+--- cclm-sp_2.0/src/utils/cfu/src/add_months.f90	1970-01-01 01:00:00.000000000 +0100
++++ utils/cfu/src/add_months.f90	2023-07-26 11:48:06.885202600 +0200
+@@ -0,0 +1,71 @@
++SUBROUTINE add_months (ystartdate, madd)
++
++!-------------------------------------------------------------------------------
++!
++! Description:
++!   This program adds a number of months to a date
++!   YYYYMMDDHH(new) = YYYMMDDHH(old) + months
++!
++!   Usage:
++!     add_hours <yyyymmddhh> <months>
++!
++!   The result is written to standard output in the form YYYYMMDDHH
++!
++!-------------------------------------------------------------------------------
++
++  IMPLICIT NONE
++!
++! Input Parameter list:
++! ---------------------
++
++  CHARACTER (LEN=10)  , INTENT(IN)          ::         &
++    ystartdate    ! start date of the forecast
++
++  INTEGER, INTENT(IN) :: &
++    madd       ! months to be added to ystartdate
++
++! Parameter written to standard output
++! ------------------------------------
++
++  CHARACTER (LEN=10)          ::                           &
++    yactdate1  ! actual date in the form   yyyymmddhh
++
++
++! Local variables:
++! ------------------------------------
++
++  INTEGER      ::                                       &
++    nmonths, rest_months, iargc, &
++    year_s, month_s, day_s, hour_s, year_e, month_e, day_e, hour_e, &
++    full_years
++
++
++!------------ End of header ----------------------------------------------------
++
++! Begin subroutine add_months
++
++  READ ( ystartdate, '(I4,3I2)' ) year_s, month_s, day_s, hour_s
++
++  nmonths = madd
++  month_e = month_s + nmonths
++!  WRITE(*,*) madd, nmonths, month_s, month_e
++  IF (month_e <= 12) THEN
++    year_e = year_s
++!    WRITE(*,*) year_s, year_e
++    day_e  = day_s
++    hour_e = hour_s
++  ELSE
++    nmonths = nmonths - 12 + month_s
++    full_years = nmonths / 12
++    rest_months = nmonths - full_years * 12
++    year_e = year_s + full_years + 1
++    month_e = rest_months
++    IF (month_e == 0) month_e = 12
++    day_e  = day_s
++    hour_e = hour_s
++  ENDIF
++
++    WRITE(yactdate1,'(I4.4,3I2.2)') year_e, month_e, day_e, hour_e
++    WRITE(*,'(A10)') yactdate1
++ 
++END SUBROUTINE add_months
+diff --unidirectional-new-file -r -U 1 cclm-sp_2.0/src/utils/cfu/src/cfu.f90 utils/cfu/src/cfu.f90
+--- cclm-sp_2.0/src/utils/cfu/src/cfu.f90	1970-01-01 01:00:00.000000000 +0100
++++ utils/cfu/src/cfu.f90	2023-07-26 11:48:06.887153600 +0200
+@@ -0,0 +1,180 @@
++PROGRAM cfu
++
++  IMPLICIT NONE
++  
++  INTEGER :: &
++    iargc
++
++  CHARACTER (LEN=50) :: &
++    function_name
++
++  CHARACTER (LEN=50) :: &
++    yprefix1, yprefix2, ysuffix
++
++  CHARACTER (LEN=250) :: &
++    yinpdir
++
++  CHARACTER (LEN=200) :: &
++    carg
++
++  CHARACTER (LEN=10) :: &
++    ystartdate, yenddate
++
++  CHARACTER (LEN=8) :: &
++    yinterval
++
++  INTEGER :: &
++    itype_calendar
++
++  LOGICAL :: &
++    lastoutput
++
++  REAL :: &
++    hours
++  
++  INTEGER :: &
++    months, hinchours
++
++  IF (iargc() < 1) THEN
++    PRINT *, 'ERROR: invalid number of arguments'
++    PRINT *, 'Usage: cfu <function> <function argument 1> <function argument 2> .. <function argument n>'
++    CALL cfu_help
++    STOP
++  ENDIF
++
++  CALL getarg(1,function_name) 
++  
++  SELECT CASE (TRIM(function_name))
++  CASE ('add_hours')
++  
++    IF (iargc() < 3 .OR. iargc() > 4) THEN
++      PRINT *, 'ERROR: Invalid number of arguments'
++      PRINT *, 'Usage: cfu add_hours <yyyymmddhh> <hours> [<itype_calendar>]'
++      STOP
++    ENDIF
++  
++    CALL getarg(2,ystartdate)
++    CALL getarg(3,carg)
++    READ (carg,*) hours
++
++
++    IF (iargc() == 3) THEN
++      itype_calendar = 0
++    ELSE
++      CALL getarg(4,carg)
++      READ (carg,*) itype_calendar
++    ENDIF
++
++    CALL add_hours (ystartdate, hours, itype_calendar)
++
++  CASE ('add_months')
++  
++    IF (iargc() /= 3) THEN
++      PRINT *, 'ERROR: Invalid number of arguments'
++      PRINT *, 'Usage: cfu add_hours <yyyymmddhh> <months>'
++      STOP
++    ENDIF
++  
++    CALL getarg(2,ystartdate)
++    CALL getarg(3,carg)
++    READ (carg,*) months
++
++    CALL add_months (ystartdate, months)
++
++  CASE ('check_files')
++  
++    IF (iargc() < 9 .OR. iargc() > 10) THEN
++      PRINT *, 'ERROR: Invalid number of arguments'
++      PRINT *, 'Usage: cfu check_files <ystartdate> <yenddate> <hinchours> ', &
++               '<prefix1> <prefix2> <suffix> <input directory> <lastoutput> [<itype_calendar>]'
++    STOP
++    END IF
++
++    CALL getarg(2,ystartdate)
++    CALL getarg(3,yenddate)
++    CALL getarg(4,carg)
++    READ (carg,*) hinchours
++    CALL getarg(5,yprefix1)
++    CALL getarg(6,yprefix2)
++    CALL getarg(7,ysuffix)
++    CALL getarg(8,yinpdir)
++    CALL getarg(9,carg)
++    READ (carg,*) lastoutput
++
++    IF (iargc() < 10) THEN
++      itype_calendar = 0
++    ELSE
++      CALL getarg(10,carg)
++      READ (carg,*) itype_calendar
++    ENDIF
++
++
++    CALL check_files (ystartdate, yenddate, hinchours, yprefix1, yprefix2, ysuffix, yinpdir, lastoutput, itype_calendar)
++ 
++   CASE ('get_hours')
++  
++    IF (iargc() < 3 .OR. iargc() > 4) THEN
++      PRINT *, 'ERROR: Invalid number of arguments'
++      PRINT *, 'Usage: cfu get_hours <ystartdate> <yenddate> [<itype_calendar>]'
++      STOP
++    ENDIF
++  
++    CALL getarg(2,ystartdate)
++    CALL getarg(3,yenddate)
++
++
++    IF (iargc() == 3) THEN
++      itype_calendar = 0
++    ELSE
++      CALL getarg(4,carg)
++      READ (carg,*) itype_calendar
++    ENDIF
++
++    CALL get_hours (ystartdate, yenddate, itype_calendar)
++
++   CASE ('get_next_dates')
++  
++    IF (iargc() < 3 .OR. iargc() > 4) THEN
++      PRINT *, 'ERROR: Invalid number of arguments'
++      PRINT *, 'Usage: cfu get_next_dates <yyyymmddhh> <mm:dd:hh> [<itype_calendar>]'
++      STOP
++    ENDIF
++  
++    CALL getarg(2,ystartdate)
++    CALL getarg(3,yinterval)
++
++
++    IF (iargc() == 3) THEN
++      itype_calendar = 0
++    ELSE
++      CALL getarg(4,carg)
++      READ (carg,*) itype_calendar
++    ENDIF
++
++    CALL get_next_dates (ystartdate, yinterval, itype_calendar)
++
++  CASE DEFAULT
++  
++    PRINT *, 'ERROR: illegal function'
++    CALL cfu_help
++  
++  END SELECT
++
++END PROGRAM cfu
++
++SUBROUTINE cfu_help
++
++   IMPLICIT NONE
++   
++   PRINT *
++   PRINT *, 'Valid functions:'
++   PRINT *, 'add_hours <yyyymmddhh> <hours> [<itype_calendar>]'
++   PRINT *, 'add_months <yyyymmddhh> <months>'
++   PRINT *, 'check_files <ystartdate> <yenddate> <hinchours> ', &
++               '<prefix1> <prefix2> <suffix> <input directory> <lastoutput> [<itype_calendar>]'
++   PRINT *, 'get_hours <ystartdate> <yenddate> [<itype_calendar>]'
++   PRINT *, 'get_next_dates <yyyymmddhh> <mm:dd:hh> [<itype_calendar>]'
++  
++   RETURN
++
++END SUBROUTINE cfu_help
+diff --unidirectional-new-file -r -U 1 cclm-sp_2.0/src/utils/cfu/src/check_files.f90 utils/cfu/src/check_files.f90
+--- cclm-sp_2.0/src/utils/cfu/src/check_files.f90	1970-01-01 01:00:00.000000000 +0100
++++ utils/cfu/src/check_files.f90	2023-07-26 11:48:06.889108200 +0200
+@@ -0,0 +1,644 @@
++SUBROUTINE check_files (ystartdate, yenddate, hinchours, yprefix1, yprefix2, ysuffix, inpdir, lastoutput, itype_calendar)
++
++!
++! Purpose: checks whether all necessary data files are available of the following file syntax
++!          <prefix>yyyymmddhh<suffix>
++!
++!          Output on standard device: 0 = all files found
++!                                     1 = missing files exist
++!          Output on file "check_files.log" : listing of files
++!
++
++  IMPLICIT NONE
++
++! Input Parameter list:
++! ---------------------
++
++  CHARACTER (LEN=*), INTENT(IN) :: &
++    inpdir
++
++  INTEGER , INTENT(IN) :: &
++    itype_calendar  ! type of calendar 
++                    ! 0 = standard calendar
++                    ! 1 = climatological calendar (360 days per year)
++                    ! 2 = climatological calendar (365 days per year)
++
++  LOGICAL, INTENT(IN) :: &
++    lastoutput      ! = true, if the last output file should be checked
++
++  CHARACTER (LEN=10) :: &
++    ystartdate,     &
++    yenddate
++
++  CHARACTER (LEN=*)  , INTENT(IN) :: &
++    yprefix1,        &
++    yprefix2,        &
++    ysuffix
++
++  INTEGER :: &
++    hinchours
++
++! Local variables:
++! ------------------------------------
++
++  CHARACTER (LEN=200) :: &
++    bndfile1, bndfile2
++
++  CHARACTER (LEN=10) :: &
++    yactdate
++
++  CHARACTER (LEN=2) :: &
++    yhh
++
++  INTEGER :: &
++    iargc,        &
++    hh_start,     &
++    hh_end,       &
++    hh_add,       &
++    hours,        &
++    endhours
++
++  LOGICAL :: &
++    lexist,   &
++    lok=.TRUE.
++
++
++  OPEN (1, FILE='check_files.log',form='formatted')
++
++  yhh = ystartdate(9:10)
++  READ(yhh,'(I2)') hh_start
++  hh_start = hh_start - MOD(hh_start,hinchours)
++  WRITE(yhh,'(I2.2)') hh_start
++  ystartdate(9:10) = yhh
++  yhh = yenddate(9:10)
++  READ(yhh,'(I2)') hh_end
++  hh_add = hinchours - MOD(hh_end,hinchours)
++  IF (hh_add == hinchours) hh_add = 0
++  
++  IF (hh_add /= hinchours) THEN
++    CALL calc_utc_date (yenddate, REAL(hh_add), itype_calendar, yactdate)
++    yenddate = yactdate
++  ENDIF
++  
++  CALL calc_hours (ystartdate, yenddate, itype_calendar, endhours)
++
++  hours = 0
++  
++  IF (.NOT. lastoutput) endhours = endhours - hinchours
++
++  DO WHILE (hours <= endhours)
++
++    CALL calc_utc_date (ystartdate, REAL(hours), itype_calendar, yactdate)
++    bndfile1 = TRIM(inpdir)//'/'//TRIM(yprefix1)//yactdate//TRIM(ysuffix)
++    !... check if boundary file exists
++    INQUIRE(file=bndfile1,exist=lexist)
++    IF (.NOT. lexist) THEN
++      IF ( TRIM(yprefix1) == TRIM(yprefix2)) THEN
++        WRITE (1,*) TRIM(bndfile1),' does not exist'
++        lok = .FALSE.
++      ELSE
++        bndfile2 = TRIM(inpdir)//'/'//TRIM(yprefix2)//yactdate//TRIM(ysuffix)
++        INQUIRE(file=bndfile2,exist=lexist)
++        IF (.NOT. lexist) THEN
++          WRITE (1,*) TRIM(bndfile1),' does not exist'
++          WRITE (1,*) TRIM(bndfile2),' does not exist'
++          lok = .FALSE.
++        ELSE
++          WRITE (1,*) TRIM(bndfile1),' found'
++        ENDIF
++     ENDIF
++!      PRINT *, 'missing file: ',TRIM(bndfile)
++    ELSE
++      WRITE (1,*) TRIM(bndfile1),' found'
++    ENDIF
++ 
++    hours = hours + hinchours
++  ENDDO
++
++  CLOSE (1)
++
++  IF (lok) THEN
++    write (*,'(A1)') '0'
++  ELSE
++    write (*,'(A1)') '1'
++  ENDIF
++
++
++END SUBROUTINE check_files
++
++!------------------------------------------------------------------------------
++!------------------------------------------------------------------------------
++
++SUBROUTINE calc_utc_date (ystartdate, hadd, itype_calendar, yactdate)
++
++!-------------------------------------------------------------------------------
++!
++! Description:
++!   This routine determines the actual date of this forecast step.
++!
++! Method:
++!   Using the date of the forecast-start, the number of time steps 
++!   already performed and the length of the time steps, the actual
++!   date is calculated taking leap-years into consideration.
++!   The date is given in three different formats.
++!
++! Modules used:    NONE
++!
++!-------------------------------------------------------------------------------
++
++  IMPLICIT NONE
++
++!
++! Input Parameter list:
++! ---------------------
++
++  CHARACTER (LEN=10), INTENT(IN)          ::                &
++    ystartdate ! start date of the forecast
++
++  REAL, INTENT(IN)       ::   &
++    hadd       ! hours to be added to ystartdate
++
++  INTEGER, INTENT(IN)          ::                &
++    itype_calendar ! type of calendar
++
++
++! Output Parameter list:
++! ----------------------
++
++  CHARACTER (LEN=10) , INTENT(OUT)         ::               &
++    yactdate  ! actual date in the form   yyyymmddhh
++
++! Local variables:
++
++INTEGER      ::                                       &
++  month(12), monthsum(13), ileap, iweek, iy, m,                       &
++  idd, imm, iyy, ihh, iday, imonth, iyear, ihour, immhours, iyyhours
++  CHARACTER (LEN=3)            :: yweek(7)
++
++!------------ End of header ----------------------------------------------------
++
++! Begin subroutine calc_utc_date
++
++DATA         month  / 31 ,  28 ,  31 ,  30 ,  31 ,  30 ,       &
++                      31 ,  31 ,  30 ,  31 ,  30 ,  31 /
++DATA         yweek  /'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN' /
++
++
++! Statementfunction: ileap(yy) = 0:  no leap year, 
++!                    ileap(yy) = 1:  leap year
++  ileap (iy) = IABS( MOD(iy,  4) -   4) /   4  & ! every       4 years is a leapyear
++              -IABS( MOD(iy,100) - 100) / 100  & ! every     100 years is no leapyear
++              +IABS( MOD(iy,400) - 400) / 400    ! but every 400 years is a leapyear
++
++! Divide ystartdate in day, month, year and hour
++! and calculate the sums of days from the beginning of the year to the 
++! end of the months
++  READ ( ystartdate, '(I4,3I2)' ) iyy, imm, idd, ihh
++
++  SELECT CASE (itype_calendar)
++  
++  CASE (0)   !  Standard year
++  
++  month (2)    = 28 + ileap (iyy)
++  monthsum(1) =  0
++  DO m =  2 , 13
++    monthsum(m) =  monthsum(m-1) + month(m-1)
++  enddo
++
++! Determine how many hours have passed in this year
++  iyyhours = (idd*24) + monthsum(imm)*24 + (ihh-24)
++  iyyhours = iyyhours + hadd
++! Take turning of the year into account
++    IF (iyyhours < 0) THEN
++      iyear    = iyy
++      DO WHILE (iyyhours >= (8760+ileap(iyear)*24))
++       iyyhours = iyyhours - (8760+ileap(iyear)*24)
++       iyear=iyear+1
++       month (2)    = 28 + ileap (iyear)
++       monthsum(1) =  0
++       DO m =  2 , 13
++           monthsum(m) =  monthsum(m-1) + month(m-1)
++       ENDDO
++      ENDDO
++    ELSE IF (iyyhours >= (8760+ileap(iyy)*24)) THEN
++      ! Take also into account if the run lasts
++      ! for several years
++      iyear    = iyy
++      DO WHILE (iyyhours >= (8760+ileap(iyear)*24))
++       iyyhours = iyyhours - (8760+ileap(iyear)*24)
++       iyear=iyear+1
++       month (2)    = 28 + ileap (iyear)
++       monthsum(1) =  0
++       DO m =  2 , 13
++           monthsum(m) =  monthsum(m-1) + month(m-1)
++       ENDDO
++      ENDDO
++    ELSE
++      iyear    =   iyy
++    ENDIF
++
++! Determine the actual date from iyyhours
++  m        = 1
++  immhours = iyyhours
++  DO WHILE (immhours >= 0)
++    m        = m+1
++    immhours = iyyhours - monthsum(m) * 24
++  ENDDO
++  imonth   = m-1
++  immhours = iyyhours - monthsum(imonth)*24
++  iday     = immhours/24 + 1
++  ihour    = MOD(immhours,24)
++  iweek    = MOD(monthsum(imonth) + iday + (iyear-1981)+(iyear-1981)/4+2 , 7) + 1
++
++  WRITE ( yactdate(1:4) , '(I4.4)' ) iyear
++  WRITE ( yactdate(5:6) , '(I2.2)' ) imonth
++  WRITE ( yactdate(7:8) , '(I2.2)' ) iday
++  WRITE ( yactdate(9:10), '(I2.2)' ) ihour
++
++  CASE (1)   !  360 days per year
++
++  monthsum(1) =  0
++  DO m =  2 , 13
++    monthsum(m) =  monthsum(m-1) + 30
++  enddo
++
++! Determine how many hours have passed in this year
++  iyyhours = (idd*24) + monthsum(imm)*24 + (ihh-24)
++  iyyhours = iyyhours + hadd
++
++! Take turning of the year into account
++  IF (iyyhours < 0) THEN
++    iyear    = iyy-1
++    iyyhours = 8640  + iyyhours
++  ELSE IF (iyyhours >= 8640) THEN
++      iyear    = iyy
++    DO WHILE (iyyhours >= 8640)
++      iyear    = iyear+1
++      iyyhours = iyyhours - 8640
++    ENDDO
++  ELSE
++    iyear    =   iyy
++  ENDIF
++
++! Determine the actual date from iyyhours
++  m        = 1
++  immhours = iyyhours
++  DO WHILE (immhours >= 0)
++    m        = m+1
++    immhours = iyyhours - monthsum(m) * 24
++  ENDDO
++  imonth   = m-1
++  immhours = iyyhours - monthsum(imonth)*24
++  iday     = immhours/24 + 1
++  ihour    = MOD(immhours,24)
++  iweek    = MOD(monthsum(imonth) + iday + (iyear-1981) , 7) + 1
++
++  WRITE ( yactdate(1:4) , '(I4.4)' ) iyear
++  WRITE ( yactdate(5:6) , '(I2.2)' ) imonth
++  WRITE ( yactdate(7:8) , '(I2.2)' ) iday
++  WRITE ( yactdate(9:10), '(I2.2)' ) ihour
++
++  
++  CASE (2)   !  365 days per year
++  
++
++  monthsum(1) =  0
++  DO m =  2 , 13
++    monthsum(m) =  monthsum(m-1) + month(m-1)
++  enddo
++
++! Determine how many hours have passed in this year
++  iyyhours = (idd*24) + monthsum(imm)*24 + (ihh-24)
++  iyyhours = iyyhours + hadd
++! Take turning of the year into account
++    IF (iyyhours < 0) THEN
++      iyear    = iyy
++      DO WHILE (iyyhours >= 8760)
++       iyyhours = iyyhours - 8760
++       iyear=iyear+1
++       monthsum(1) =  0
++       DO m =  2 , 13
++           monthsum(m) =  monthsum(m-1) + month(m-1)
++       ENDDO
++      ENDDO
++    ELSE IF (iyyhours >= 8760) THEN
++      ! Take also into account if the run lasts
++      ! for several years
++      iyear    = iyy
++      DO WHILE (iyyhours >= 8760)
++       iyyhours = iyyhours - 8760
++       iyear=iyear+1
++       monthsum(1) =  0
++       DO m =  2 , 13
++           monthsum(m) =  monthsum(m-1) + month(m-1)
++       ENDDO
++      ENDDO
++    ELSE
++      iyear    =   iyy
++    ENDIF
++
++! Determine the actual date from iyyhours
++  m        = 1
++  immhours = iyyhours
++  DO WHILE (immhours >= 0)
++    m        = m+1
++    immhours = iyyhours - monthsum(m) * 24
++  ENDDO
++  imonth   = m-1
++  immhours = iyyhours - monthsum(imonth)*24
++  iday     = immhours/24 + 1
++  ihour    = MOD(immhours,24)
++  iweek    = MOD(monthsum(imonth) + iday + (iyear-1981)+(iyear-1981)/4+2 , 7) + 1
++
++  WRITE ( yactdate(1:4) , '(I4.4)' ) iyear
++  WRITE ( yactdate(5:6) , '(I2.2)' ) imonth
++  WRITE ( yactdate(7:8) , '(I2.2)' ) iday
++  WRITE ( yactdate(9:10), '(I2.2)' ) ihour
++
++  END SELECT
++
++END SUBROUTINE calc_utc_date
++
++!------------------------------------------------------------------------------
++!------------------------------------------------------------------------------
++
++SUBROUTINE calc_hours (ystartdate, yenddate, itype_calendar, hours)
++
++!-------------------------------------------------------------------------------
++!
++! Description:
++!   This routine determines the number of hours between two dates
++!
++!
++! Modules used:    NONE
++!
++!-------------------------------------------------------------------------------
++
++  IMPLICIT NONE
++!
++! Input Parameter list:
++! ---------------------
++
++  CHARACTER (LEN=10)           ::                           &
++    ystartdate, & ! start date of the forecast
++    yenddate      ! end date of the forecast
++
++  INTEGER, INTENT(IN)          ::                &
++    itype_calendar ! type of calendar
++
++! Output Parameter list:
++! ---------------------
++
++  INTEGER :: &
++    hours
++
++! Local variables:
++  INTEGER      ::                                       &
++    i, iy, &
++    month(12), ileap, year_s, month_s, day_s, hour_s, year_e, month_e, day_e, hour_e, &
++    full_years, full_months, full_days
++
++!------------ End of header ----------------------------------------------------
++
++! Begin subroutine calc_hours
++
++DATA         month  / 31 ,  28 ,  31 ,  30 ,  31 ,  30 ,       &
++                      31 ,  31 ,  30 ,  31 ,  30 ,  31 /
++
++! Statementfunction: ileap(yy) = 0:  no leap year, 
++!                    ileap(yy) = 1:  leap year
++  ileap (iy) = IABS( MOD(iy,  4) -   4) /   4  & ! every       4 years is a leapyear
++              -IABS( MOD(iy,100) - 100) / 100  & ! every     100 years is no leapyear
++              +IABS( MOD(iy,400) - 400) / 400    ! but every 400 years is a leapyear
++
++
++! Divide ystartdate in day, month, year and hour
++! and calculate the sums of days from the beginning of the year to the 
++! end of the months
++  READ ( ystartdate, '(I4,3I2)' ) year_s, month_s, day_s, hour_s
++  READ ( yenddate, '(I4,3I2)' ) year_e, month_e, day_e, hour_e
++
++  hours = 0
++  full_years = year_e - year_s
++  
++  SELECT CASE (itype_calendar)
++  
++  CASE (0)   !  Standard year
++  
++! year_s == year_e
++    IF (year_s == year_e) THEN
++      month(2) = 28 + ileap(year_s)
++      IF (month_e > month_s + 1) THEN
++        DO i = month_s+1, month_e-1
++          hours = hours + month(i) * 24
++        ENDDO
++      ENDIF
++      IF (month_e > month_s) THEN
++        full_days = month(month_s) - day_s
++        IF (full_days > 1) THEN
++          hours = hours + full_days * 24
++        ENDIF
++        hours = hours + 24 - hour_s
++        full_days = day_e - 1
++        IF (full_days > 0) THEN
++          hours = hours + full_days * 24
++        ENDIF
++        hours = hours + hour_e
++      ELSE
++        full_days = day_e - day_s - 1
++        IF (full_days > 0) THEN
++          hours = hours + full_days * 24
++        ENDIF
++        IF (day_e > day_s) THEN
++          hours = hours + 24 - hour_s
++          hours = hours + hour_e
++        ELSE
++          hours = hours + hour_e - hour_s
++        ENDIF
++      ENDIF
++
++    ELSE
++  ! year_s < year_e
++    ! full years
++      IF (full_years > 1) THEN
++        DO i = year_s+1, year_e-1
++          hours = hours + (365 + ileap(i)) * 24
++        ENDDO
++      ENDIF
++    ! start year
++      month(2) = 28 + ileap(year_s)
++    ! full months
++      full_months = 12 - month_s
++      IF (full_months > 1) THEN
++        DO i = month_s+1, 12
++          hours = hours + month(i) * 24
++        ENDDO
++      ENDIF
++    ! full days
++      full_days = month(month_s) - day_s
++      IF (full_days > 0) THEN
++        hours = hours + full_days * 24
++      ENDIF
++    ! hours left
++      hours = hours + 24 - hour_s
++
++    ! end year
++    ! full months
++      IF (month_e > 1) THEN
++        month(2) = 28 + ileap(year_e)
++        DO i = 1, month_e-1
++          hours = hours + month(i) * 24
++        ENDDO
++      ENDIF
++    ! full days
++      IF (day_e > 1) THEN
++        hours = hours + (day_e - 1) * 24
++      ENDIF
++    ! hours left
++      hours = hours + hour_e
++      
++    ENDIF
++
++  CASE (1)   !  360 days per year
++
++! year_s == year_e
++    IF (year_s == year_e) THEN
++      IF (month_e > month_s + 1) THEN
++        hours = hours + (month_e - month_s - 1) * 720
++      ENDIF
++      IF (month_e > month_s) THEN
++        full_days = 30 - day_s
++        IF (full_days > 1) THEN
++          hours = hours + full_days * 24
++        ENDIF
++        hours = hours + 24 - hour_s
++        full_days = day_e - 1
++        IF (full_days > 0) THEN
++          hours = hours + full_days * 24
++        ENDIF
++        hours = hours + hour_e
++      ELSE
++        full_days = day_e - day_s - 1
++        IF (full_days > 0) THEN
++          hours = hours + full_days * 24
++        ENDIF
++        IF (day_e > day_s) THEN
++          hours = hours + 24 - hour_s
++          hours = hours + hour_e
++        ELSE
++          hours = hours + hour_e - hour_s
++        ENDIF
++      ENDIF
++
++    ELSE
++    
++    ! year_s < year_e
++    ! full years
++      IF (full_years > 1) THEN
++        hours = hours + (full_years-1) * 8640
++      ENDIF
++    ! start year
++    ! full months
++      full_months = 12 - month_s
++      IF (full_months > 0) THEN
++        hours = hours + full_months * 720
++      ENDIF
++    ! full days
++      full_days = 30 - day_s
++      IF (full_days > 0) THEN
++        hours = hours + full_days * 24
++      ENDIF
++    ! hours left
++        hours = hours + 24 - hour_s
++    ! end year
++    ! full_months
++      IF (month_e > 1) THEN
++        hours = hours + (month_e - 1) * 720
++      ENDIF
++    ! full_days
++      IF (day_e > 1) THEN
++        hours = hours + (day_e - 1) * 24
++      ENDIF
++    ! hours left
++      hours = hours + hour_e
++      
++    ENDIF
++  
++  CASE (2)   !  365 days per year
++  
++! year_s == year_e
++    IF (year_s == year_e) THEN
++      IF (month_e > month_s + 1) THEN
++        DO i = month_s+1, month_e-1
++          hours = hours + month(i) * 24
++        ENDDO
++      ENDIF
++      IF (month_e > month_s) THEN
++        full_days = month(month_s) - day_s
++        IF (full_days > 1) THEN
++          hours = hours + full_days * 24
++        ENDIF
++        hours = hours + 24 - hour_s
++        full_days = day_e - 1
++        IF (full_days > 0) THEN
++          hours = hours + full_days * 24
++        ENDIF
++        hours = hours + hour_e
++      ELSE
++        full_days = day_e - day_s - 1
++        IF (full_days > 0) THEN
++          hours = hours + full_days * 24
++        ENDIF
++        IF (day_e > day_s) THEN
++          hours = hours + 24 - hour_s
++          hours = hours + hour_e
++        ELSE
++          hours = hours + hour_e - hour_s
++        ENDIF
++      ENDIF
++
++    ELSE
++  ! year_s < year_e
++    ! full years
++      IF (full_years > 1) THEN
++        DO i = year_s+1, year_e-1
++          hours = hours + 8760
++        ENDDO
++      ENDIF
++    ! start year
++    ! full months
++      full_months = 12 - month_s
++      IF (full_months > 1) THEN
++        DO i = month_s+1, 12
++          hours = hours + month(i) * 24
++        ENDDO
++      ENDIF
++    ! full days
++      full_days = month(month_s) - day_s
++      IF (full_days > 0) THEN
++        hours = hours + full_days * 24
++      ENDIF
++    ! hours left
++      hours = hours + 24 - hour_s
++
++    ! end year
++    ! full months
++      IF (month_e > 1) THEN
++        DO i = 1, month_e-1
++          hours = hours + month(i) * 24
++        ENDDO
++      ENDIF
++    ! full days
++      IF (day_e > 1) THEN
++        hours = hours + (day_e - 1) * 24
++      ENDIF
++    ! hours left
++      hours = hours + hour_e
++      
++    ENDIF
++    
++ END SELECT
++  
++ 
++  
++END SUBROUTINE calc_hours
+diff --unidirectional-new-file -r -U 1 cclm-sp_2.0/src/utils/cfu/src/get_hours.f90 utils/cfu/src/get_hours.f90
+--- cclm-sp_2.0/src/utils/cfu/src/get_hours.f90	1970-01-01 01:00:00.000000000 +0100
++++ utils/cfu/src/get_hours.f90	2023-07-26 11:48:06.892036600 +0200
+@@ -0,0 +1,283 @@
++SUBROUTINE get_hours (ystartdate, yenddate, itype_calendar)
++
++!-------------------------------------------------------------------------------
++!
++! Description:
++!   This routine determines the number of hours between two dates
++!
++!
++! Output on standard device: number of hours
++!
++!-------------------------------------------------------------------------------
++
++  IMPLICIT NONE
++!
++! Input Parameter list:
++! ---------------------
++
++  CHARACTER (LEN=10)           ::                           &
++    ystartdate, & ! start date of the forecast
++    yenddate      ! end date of the forecast
++
++  INTEGER, INTENT(IN) :: &
++    itype_calendar  ! type of calendar 
++                    ! 0 = standard calendar
++                    ! 1 = climatological calendar (360 days per year)
++                    ! 2 = 365 days per year
++
++! Local variables:
++  INTEGER      ::                                       &
++    i, iy, iargc, &
++    month(12), ileap, year_s, month_s, day_s, hour_s, year_e, month_e, day_e, hour_e, &
++    full_years, full_months, full_days, hours
++  CHARACTER (LEN=200)          :: chours
++
++!------------ End of header ----------------------------------------------------
++
++! Begin subroutine get_utc_date
++
++DATA         month  / 31 ,  28 ,  31 ,  30 ,  31 ,  30 ,       &
++                      31 ,  31 ,  30 ,  31 ,  30 ,  31 /
++
++! Statementfunction: ileap(yy) = 0:  no leap year, 
++!                    ileap(yy) = 1:  leap year
++  ileap (iy) = IABS( MOD(iy,  4) -   4) /   4  & ! every       4 years is a leapyear
++              -IABS( MOD(iy,100) - 100) / 100  & ! every     100 years is no leapyear
++              +IABS( MOD(iy,400) - 400) / 400    ! but every 400 years is a leapyear
++
++
++! Divide ystartdate in day, month, year and hour
++! and calculate the sums of days from the beginning of the year to the 
++! end of the months
++  READ ( ystartdate, '(I4,3I2)' ) year_s, month_s, day_s, hour_s
++  READ ( yenddate, '(I4,3I2)' ) year_e, month_e, day_e, hour_e
++
++  hours = 0
++  full_years = year_e - year_s
++  
++  SELECT CASE (itype_calendar)
++
++  CASE (0)   !  Standard year
++  
++! year_s == year_e
++    IF (year_s == year_e) THEN
++      month(2) = 28 + ileap(year_s)
++      IF (month_e > month_s + 1) THEN
++        DO i = month_s+1, month_e-1
++          hours = hours + month(i) * 24
++        ENDDO
++      ENDIF
++      IF (month_e > month_s) THEN
++        full_days = month(month_s) - day_s
++        IF (full_days > 1) THEN
++          hours = hours + full_days * 24
++        ENDIF
++        hours = hours + 24 - hour_s
++        full_days = day_e - 1
++        IF (full_days > 0) THEN
++          hours = hours + full_days * 24
++        ENDIF
++        hours = hours + hour_e
++      ELSE
++        full_days = day_e - day_s - 1
++        IF (full_days > 0) THEN
++          hours = hours + full_days * 24
++        ENDIF
++        IF (day_e > day_s) THEN
++          hours = hours + 24 - hour_s
++          hours = hours + hour_e
++        ELSE
++          hours = hours + hour_e - hour_s
++        ENDIF
++      ENDIF
++
++    ELSE
++  ! year_s < year_e
++    ! full years
++      IF (full_years > 1) THEN
++        DO i = year_s+1, year_e-1
++          hours = hours + (365 + ileap(i)) * 24
++        ENDDO
++      ENDIF
++    ! start year
++      month(2) = 28 + ileap(year_s)
++    ! full months
++      full_months = 12 - month_s
++      IF (full_months > 0) THEN
++        DO i = month_s+1, 12
++          hours = hours + month(i) * 24
++        ENDDO
++      ENDIF
++    ! full days
++      full_days = month(month_s) - day_s
++      IF (full_days > 0) THEN
++        hours = hours + full_days * 24
++      ENDIF
++    ! hours left
++      hours = hours + 24 - hour_s
++
++    ! end year
++    ! full months
++      IF (month_e > 1) THEN
++        month(2) = 28 + ileap(year_e)
++        DO i = 1, month_e-1
++          hours = hours + month(i) * 24
++        ENDDO
++      ENDIF
++    ! full days
++      IF (day_e > 1) THEN
++        hours = hours + (day_e - 1) * 24
++      ENDIF
++    ! hours left
++      hours = hours + hour_e
++      
++    ENDIF
++
++!....
++  CASE (1)   !  360 days per year
++
++! year_s == year_e
++    IF (year_s == year_e) THEN
++      IF (month_e > month_s + 1) THEN
++        hours = hours + (month_e - month_s - 1) * 720
++      ENDIF
++      IF (month_e > month_s) THEN
++        full_days = 30 - day_s
++        IF (full_days > 1) THEN
++          hours = hours + full_days * 24
++        ENDIF
++        hours = hours + 24 - hour_s
++        full_days = day_e - 1
++        IF (full_days > 0) THEN
++          hours = hours + full_days * 24
++        ENDIF
++        hours = hours + hour_e
++      ELSE
++        full_days = day_e - day_s - 1
++        IF (full_days > 0) THEN
++          hours = hours + full_days * 24
++        ENDIF
++        IF (day_e > day_s) THEN
++          hours = hours + 24 - hour_s
++          hours = hours + hour_e
++        ELSE
++          hours = hours + hour_e - hour_s
++        ENDIF
++      ENDIF
++
++    ELSE
++    
++    ! year_s < year_e
++    ! full years
++      IF (full_years > 1) THEN
++        hours = hours + (full_years-1) * 8640
++      ENDIF
++    ! start year
++    ! full months
++      full_months = 12 - month_s
++      IF (full_months > 0) THEN
++        hours = hours + full_months * 720
++      ENDIF
++    ! full days
++      full_days = 30 - day_s
++      IF (full_days > 0) THEN
++        hours = hours + full_days * 24
++      ENDIF
++    ! hours left
++        hours = hours + 24 - hour_s
++    ! end year
++    ! full_months
++      IF (month_e > 1) THEN
++        hours = hours + (month_e - 1) * 720
++      ENDIF
++    ! full_days
++      IF (day_e > 1) THEN
++        hours = hours + (day_e - 1) * 24
++      ENDIF
++    ! hours left
++      hours = hours + hour_e
++      
++    ENDIF
++  
++!....
++  CASE (2)   !  365 days per year
++  
++! year_s == year_e
++    IF (year_s == year_e) THEN
++      IF (month_e > month_s + 1) THEN
++        DO i = month_s+1, month_e-1
++          hours = hours + month(i) * 24
++        ENDDO
++      ENDIF
++      IF (month_e > month_s) THEN
++        full_days = month(month_s) - day_s
++        IF (full_days > 1) THEN
++          hours = hours + full_days * 24
++        ENDIF
++        hours = hours + 24 - hour_s
++        full_days = day_e - 1
++        IF (full_days > 0) THEN
++          hours = hours + full_days * 24
++        ENDIF
++        hours = hours + hour_e
++      ELSE
++        full_days = day_e - day_s - 1
++        IF (full_days > 0) THEN
++          hours = hours + full_days * 24
++        ENDIF
++        IF (day_e > day_s) THEN
++          hours = hours + 24 - hour_s
++          hours = hours + hour_e
++        ELSE
++          hours = hours + hour_e - hour_s
++        ENDIF
++      ENDIF
++
++    ELSE
++  ! year_s < year_e
++    ! full years
++      IF (full_years > 1) THEN
++        DO i = year_s+1, year_e-1
++          hours = hours + 8760
++        ENDDO
++      ENDIF
++    ! start year
++    ! full months
++      full_months = 12 - month_s
++      IF (full_months > 0) THEN
++        DO i = month_s+1, 12
++          hours = hours + month(i) * 24
++        ENDDO
++      ENDIF
++    ! full days
++      full_days = month(month_s) - day_s
++      IF (full_days > 0) THEN
++        hours = hours + full_days * 24
++      ENDIF
++    ! hours left
++      hours = hours + 24 - hour_s
++
++    ! end year
++    ! full months
++      IF (month_e > 1) THEN
++        DO i = 1, month_e-1
++          hours = hours + month(i) * 24
++        ENDDO
++      ENDIF
++    ! full days
++      IF (day_e > 1) THEN
++        hours = hours + (day_e - 1) * 24
++      ENDIF
++    ! hours left
++      hours = hours + hour_e
++      
++    ENDIF
++   
++  END SELECT
++  
++  WRITE(chours,*) hours
++  WRITE(*,'(A)') TRIM(ADJUSTL(chours))
++
++
++END SUBROUTINE get_hours
++
+diff --unidirectional-new-file -r -U 1 cclm-sp_2.0/src/utils/cfu/src/get_next_dates.f90 utils/cfu/src/get_next_dates.f90
+--- cclm-sp_2.0/src/utils/cfu/src/get_next_dates.f90	1970-01-01 01:00:00.000000000 +0100
++++ utils/cfu/src/get_next_dates.f90	2023-07-26 11:48:06.893990200 +0200
+@@ -0,0 +1,217 @@
++SUBROUTINE get_next_dates (ystartdate, yinterval, itype_calendar)
++
++!-------------------------------------------------------------------------------
++!
++! Description:
++!   This routine determines the next two dates from a given interval
++!
++!
++! Output on standard device: yyyymmddhhyyymmddhh
++!
++!-------------------------------------------------------------------------------
++
++  IMPLICIT NONE
++!
++! Input Parameter list:
++! ---------------------
++
++  CHARACTER (LEN=10)           ::                           &
++    ystartdate      ! start date
++
++  CHARACTER (LEN=8)           ::                           &
++    yinterval       ! time interval
++
++  INTEGER, INTENT(IN) :: &
++    itype_calendar  ! type of calendar 
++                    ! 0 = standard calendar
++                    ! 1 = climatological calendar (360 days per year)
++                    ! 2 = 365 days per year
++
++! Local variables:
++! ---------------------
++
++  CHARACTER (LEN=10)           ::                           &
++    ydate1,     &
++    ydate2
++
++  INTEGER      ::                                       &
++    ndm, iargc, ileap, &
++    year_s, month_s, day_s, hour_s, year_e, month_e, day_e, hour_e, &
++    dm, dd, dh, iy
++
++  INTEGER  month(12) 
++  
++! Statementfunction: ileap(yy) = 0:  no leap year, 
++!                    ileap(yy) = 1:  leap year
++  ileap (iy) = IABS( MOD(iy,  4) -   4) /   4  & ! every       4 years is a leapyear
++              -IABS( MOD(iy,100) - 100) / 100  & ! every     100 years is no leapyear
++              +IABS( MOD(iy,400) - 400) / 400    ! but every 400 years is a leapyear
++
++!------------ End of header ----------------------------------------------------
++
++! Begin subroutine get_next_dates
++
++  month =  (/ 31 , 28 , 31 , 30 , 31 , 30 , 31 , 31 , 30 , 31 , 30 , 31 /)
++
++  READ ( ystartdate, '(I4,3I2)' ) year_s, month_s, day_s, hour_s
++  READ ( yinterval, '(I2,1X,I2,1X,I2)') dm, dd, dh
++
++!... calculate the first date
++
++!... add months
++  IF (dm > 12) THEN
++    PRINT *, 'Error in get_next_dates : maximum number of months is 12'
++    STOP
++  ENDIF
++  IF (dm == 0) THEN
++    year_e  = year_s
++    month_e = month_s
++    day_e   = day_s
++    hour_e  = hour_s
++  ELSE
++    month_e = month_s + dm
++    IF (month_e <= 12) THEN
++      year_e = year_s
++      day_e  = day_s
++      hour_e = hour_s
++    ELSE
++      year_e = year_s + 1
++      month_e = month_e -12
++      day_e  = day_s
++      hour_e = hour_s
++    ENDIF
++  ENDIF
++
++!... add days
++  IF (dd > 28) THEN
++    PRINT *, 'Error in get_next_dates : maximum number of days is 28'
++    STOP
++  ENDIF
++  IF (dd /= 0) THEN
++    day_e = day_e + dd
++    ndm = month(month_e)
++    IF (ndm == 2 .AND. itype_calendar == 0) ndm = ndm + ileap(year_e)
++    IF (itype_calendar == 1) ndm = 30
++    IF (day_e > ndm) THEN
++      day_e    = day_e - ndm
++      month_e  = month_e + 1
++      IF (month_e == 13) THEN
++        month_e  = 1
++        year_e   = year_e + 1
++      ENDIF
++    ENDIF
++  ENDIF
++  
++!... add hours
++  IF (dh > 24) THEN
++    PRINT *, 'Error in get_next_dates : maximum number of hours is 23'
++    STOP
++  ENDIF
++  IF (dh /= 0) THEN
++    hour_e = hour_e + dh
++    IF (hour_e > 23) THEN
++      hour_e = hour_e - 24
++      day_e  = day_e + 1
++      ndm = month(month_e)
++      IF (ndm == 2 .AND. itype_calendar == 0) ndm = ndm + ileap(year_e)
++      IF (itype_calendar == 1) ndm = 30
++      IF (day_e > ndm) THEN
++        day_e    = day_e - ndm
++        month_e  = month_e + 1
++        IF (month_e == 13) THEN
++          month_e = 1
++          year_e  = year_e + 1
++        ENDIF
++      ENDIF
++    ENDIF
++  ENDIF
++
++  WRITE ( ydate1(1:4) , '(I4.4)' ) year_e
++  WRITE ( ydate1(5:6) , '(I2.2)' ) month_e
++  WRITE ( ydate1(7:8) , '(I2.2)' ) day_e
++  WRITE ( ydate1(9:10), '(I2.2)' ) hour_e
++
++  year_s  = year_e
++  month_s = month_e
++  day_s   = day_e
++  hour_s  = hour_e
++
++ !... calculate the second date
++
++!... add months
++  IF (dm > 12) THEN
++    PRINT *, 'Error in get_next_dates : maximum number of months is 12'
++    STOP
++  ENDIF
++  IF (dm == 0) THEN
++    year_e  = year_s
++    month_e = month_s
++    day_e   = day_s
++    hour_e  = hour_s
++  ELSE
++    month_e = month_s + dm
++    IF (month_e <= 12) THEN
++      year_e = year_s
++      day_e  = day_s
++      hour_e = hour_s
++    ELSE
++      year_e = year_s + 1
++      month_e = month_e -12
++      day_e  = day_s
++      hour_e = hour_s
++    ENDIF
++  ENDIF
++
++!... add days
++  IF (dd > 28) THEN
++    PRINT *, 'Error in get_next_dates : maximum number of days is 28'
++    STOP
++  ENDIF
++  IF (dd /= 0) THEN
++    day_e = day_e + dd
++    ndm = month(month_e)
++    IF (ndm == 2 .AND. itype_calendar == 0) ndm = ndm + ileap(year_e)
++    IF (itype_calendar == 1) ndm = 30
++    IF (day_e > ndm) THEN
++      day_e    = day_e - ndm
++      month_e  = month_e + 1
++      IF (month_e == 13) THEN
++        month_e = 1
++        year_e  = year_e + 1
++      ENDIF
++    ENDIF
++  ENDIF
++  
++!... add hours
++  IF (dh > 24) THEN
++    PRINT *, 'Error in get_next_dates : maximum number of hours is 23'
++    STOP
++  ENDIF
++  IF (dh /= 0) THEN
++    hour_e = hour_e + dh
++    IF (hour_e > 23) THEN
++      hour_e = hour_e - 24
++      day_e  = day_e + 1
++      ndm = month(month_e)
++      IF (ndm == 2 .AND. itype_calendar == 0) ndm = ndm + ileap(year_e)
++      IF (itype_calendar == 1) ndm = 30
++      IF (day_e > ndm) THEN
++        day_e    = day_e - ndm
++        month_e  = month_e + 1
++        IF (month_e == 13) THEN
++          month_e = 1
++          year_e  = year_e + 1
++        ENDIF
++      ENDIF
++    ENDIF
++  ENDIF
++
++  WRITE ( ydate2(1:4) , '(I4.4)' ) year_e
++  WRITE ( ydate2(5:6) , '(I2.2)' ) month_e
++  WRITE ( ydate2(7:8) , '(I2.2)' ) day_e
++  WRITE ( ydate2(9:10), '(I2.2)' ) hour_e
++
++  write(*,'(A10,A10)') ydate1,ydate2
++
++
++END SUBROUTINE get_next_dates
+diff --unidirectional-new-file -r -U 1 cclm-sp_2.0/src/utils/cfu/VERSION utils/cfu/VERSION
+--- cclm-sp_2.0/src/utils/cfu/VERSION	1970-01-01 01:00:00.000000000 +0100
++++ utils/cfu/VERSION	2023-07-26 11:48:06.880318800 +0200
+@@ -0,0 +1 @@
++cfu1.2

@@ -1,0 +1,83 @@
+Only in cclm-sp_2.0/src/int2lm: bin
+Only in cclm-sp_2.0/src/int2lm: DOCS
+diff --unidirectional-new-file -r -U 1 cclm-sp_2.0/src/int2lm/Fopts int2lm/Fopts
+--- cclm-sp_2.0/src/int2lm/Fopts	2015-09-21 16:13:46.000000000 +0200
++++ int2lm/Fopts	2023-07-26 11:48:06.722511200 +0200
+@@ -1,34 +1,10 @@
+ #########
+-#  Mistral (DKRZ) / Intel Compiler
++#  
++# IOW Earth System Model 
++#  
+ #########
+ #
+-# modules and libraries
+-#
+-
+-#... MPI
+-MPI_INC  = 
+-MPI_LIB  = 
+-
+-#... netCDF
+-NETCDFC_ROOT = /sw/rhel6-x64/netcdf/netcdf_c-4.3.2-gcc48
+-NETCDFF_ROOT = /sw/rhel6-x64/netcdf/netcdf_fortran-4.4.2-intel14
+-HDF5_ROOT = /sw/rhel6-x64/hdf5/hdf5-1.8.14-threadsafe-gcc48
+-SZIP_ROOT = /sw/rhel6-x64/sys/libaec-0.3.2-gcc48
+-
+-NC_INC  = -I${NETCDFF_ROOT}/include
+-NC_LIB  =  -L${NETCDFC_ROOT}/lib -lnetcdf
+-NC_LIB  += -L${NETCDFF_ROOT}/lib -lnetcdff
+-NC_LIB  += -L${HDF5_ROOT}/lib -lhdf5_hl -lhdf5 -lz
+-NC_LIB  += -L$(SZIP_ROOT)/lib -lsz -lm
+-
+-#... GRIB
+-#
+-GRIB_LIB =
+-
+-#... other libs, if needed on the computer system (e.g. mathematical packages)
+-OTHLIBS1=
+-
+ #
+ # name and path of standard binary to be produced
+-PROGRAM      = bin/int2lm.exe
++PROGRAM      = bin_${IOW_ESM_COMPILE_MODE}/int2lm.exe
+ #
+@@ -36,7 +12,4 @@
+ #
+-# important note wiith respect to the compiler
+-# I recommend to use the BULL MPI environmet. For this the nake of the compiler is "mpif90"
+-# If you want to use the INTEL MPI environment, then you have to change the name to "mpiifort"
+ # 
+-F90          = mpif90
++F90          = ${IOW_ESM_FC}
+ 
+@@ -45,3 +18,3 @@
+ # for purposes of first tests you may use in addition to the option below the options -fpe0 -traceback
+-COMFLG = -c -cpp -Os -no-vec -fp-model source $(CPPFLAGS) $(MPI_INC) ${NC_INC} -I$(SRCDIR) 
++COMFLG = -c -fpp ${IOW_ESM_FFLAGS} $(CPPFLAGS) -I$(SRCDIR) -I${IOW_ESM_NETCDF_INCLUDE}
+ 
+@@ -57,4 +30,3 @@
+ LDPAR        = ${F90}
+-LDFLG        = -I$(SRCDIR)
+-LIB          = ${GRIB_LIB} ${NC_LIB} ${MPI_LIB} ${OTHLIBS1}
+-LIB         += -Wl,-rpath,$(NETCDFF_ROOT)/lib:$(NETCDFC_ROOT)/lib:$(HDF5_ROOT)/lib:$(SZIP_ROOT)/lib
++LDFLG        = ${IOW_ESM_LDFLAGS} -L${IOW_ESM_NETCDF_LIBRARY} -lnetcdf -lnetcdff
++#-I$(SRCDIR) -I${IOW_ESM_NETCDF_INCLUDE} -L${IOW_ESM_NETCDF_LIBRARY} -lnetcdf -lnetcdff
+Only in cclm-sp_2.0/src/int2lm: LOCAL
+diff --unidirectional-new-file -r -U 1 cclm-sp_2.0/src/int2lm/Makefile int2lm/Makefile
+--- cclm-sp_2.0/src/int2lm/Makefile	2015-09-21 16:13:46.000000000 +0200
++++ int2lm/Makefile	2023-07-26 11:48:06.723774100 +0200
+@@ -17,4 +17,4 @@
+ SRCDIR       = $(STDROOT)/src
+-OBJDIR       = $(STDROOT)/obj
+-WORKDIR      = $(STDROOT)/work
++OBJDIR       = $(STDROOT)/obj_${IOW_ESM_COMPILE_MODE}
++WORKDIR      = $(STDROOT)/work_${IOW_ESM_COMPILE_MODE}
+ #
+@@ -50,3 +50,3 @@
+ 	($(LDPAR) $(LDFLG) -o $(PROGRAM) $(DATAOBJ) $(UTILOBJ) $(EXTOBJ)      \
+-                                        $(PUBLICUTILS) $(SRCOBJ) $(LIB))
++                                        $(PUBLICUTILS) $(SRCOBJ))
+ #
+Only in cclm-sp_2.0/src/int2lm: obj
+Only in cclm-sp_2.0/src/int2lm: work
